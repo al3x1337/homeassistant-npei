@@ -43,8 +43,8 @@ class NPEIClient:
     ) -> None:
         self.username = username
         self.password = password
-        self.account_id = account_id
-        self.service_id = service_id
+        self.account_id = None if account_id == "Unknown" else account_id
+        self.service_id = None if service_id == "Unknown" else service_id
         self._session = session
         self._owns_session = session is None
         self._token: Optional[str] = None
@@ -203,18 +203,46 @@ class NPEIClient:
 
         if isinstance(accounts_data, list) and accounts_data:
             account = accounts_data[0]
-            self.account_id = account.get("accountId") or account.get("id")
-            services = account.get("services", [])
-            if services:
-                service = services[0]
-                self.service_id = service.get("serviceId") or service.get("id")
         elif isinstance(accounts_data, dict):
             account = accounts_data
-            self.account_id = account.get("accountId")
-            services = account.get("services", [])
-            if services:
-                service = services[0]
-                self.service_id = service.get("serviceId")
+
+        if account:
+            self.account_id = account.get("accountId") or account.get("id")
+
+        # Fetch services from /api/v1/accounts/{accountId}/services
+        if self.account_id:
+            try:
+                services_data = await self._request(
+                    "GET",
+                    f"{MYACCOUNT_BASE_URL}/api/v1/accounts/{self.account_id}/services",
+                )
+                if not services_data:
+                    services_data = await self._request(
+                        "GET",
+                        f"{MYACCOUNT_BASE_URL}/api/v1/accounts/{self.account_id}/servicesV2",
+                    )
+                if isinstance(services_data, list) and services_data:
+                    for s in services_data:
+                        stype = str(s.get("serviceType") or s.get("type") or "").upper()
+                        if "ELEC" in stype or "HYDR" in stype:
+                            service = s
+                            break
+                    if not service:
+                        service = services_data[0]
+                    self.service_id = service.get("serviceId") or service.get("id")
+            except Exception as err:
+                _LOGGER.warning("Could not load services list from API: %s", err)
+
+        # Fallback: In NPEI, electric service ID follows the convention <account>-E-<seq> (e.g. 8407952-01 -> 8407952-E-01)
+        if (not self.service_id or self.service_id == "Unknown") and (
+            self.account_id and self.account_id != "Unknown"
+        ):
+            if "-" in self.account_id:
+                parts = self.account_id.split("-")
+                self.service_id = f"{parts[0]}-E-{parts[1]}"
+            else:
+                self.service_id = f"{self.account_id}-E-01"
+            _LOGGER.info("Using NPEI standard electric serviceId: %s", self.service_id)
 
         return {
             "customerId": customer_id,

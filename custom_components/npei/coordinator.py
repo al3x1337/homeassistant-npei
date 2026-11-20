@@ -37,6 +37,14 @@ class NPEIDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
         self.entry = entry
         self.account_id = entry.data.get("account_id")
         self.service_id = entry.data.get("service_id")
+        if (not self.service_id or self.service_id == "Unknown") and self.account_id:
+            if "-" in self.account_id:
+                parts = self.account_id.split("-")
+                self.service_id = f"{parts[0]}-E-{parts[1]}"
+            else:
+                self.service_id = f"{self.account_id}-E-01"
+            self.client.service_id = self.service_id
+            _LOGGER.info("Corrected NPEI service_id to: %s", self.service_id)
         super().__init__(
             hass,
             _LOGGER,
