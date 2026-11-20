@@ -8,5 +8,5 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/al3x1337/homeassistant-npei/issues",
   "requirements": [],
-  "version": "1.0.2"
+  "version": "1.0.3"
 }

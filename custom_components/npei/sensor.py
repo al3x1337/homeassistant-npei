@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any, Dict, Optional
 
 from homeassistant.components.sensor import (
@@ -247,9 +248,17 @@ class NPEINextSeasonStartDateSensor(NPEIBaseSensor):
         self._attr_name = "Next Season Start Date"
 
     @property
-    def native_value(self) -> Optional[str]:
+    def native_value(self) -> Optional[date]:
         season = self.coordinator.data.get("season", {})
-        return season.get("next_season_start_date")
+        val = season.get("next_season_start_date")
+        if isinstance(val, str):
+            try:
+                return date.fromisoformat(val)
+            except ValueError:
+                return None
+        if isinstance(val, date):
+            return val
+        return None
 
 
 class NPEIDaysUntilNextSeasonSensor(NPEIBaseSensor):

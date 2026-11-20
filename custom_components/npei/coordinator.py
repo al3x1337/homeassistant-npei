@@ -56,7 +56,7 @@ class NPEIDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
         """Update data via NPEI API."""
         try:
             today = date.today()
-            # Fetch past 30 days of daily usage
+            # Fetch past 35 days of daily usage
             start_date = (today - timedelta(days=35)).isoformat()
             end_date = today.isoformat()
 
@@ -65,6 +65,20 @@ class NPEIDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 end_date=end_date,
                 view="DAILY",
             )
+
+            # If recent 35 days returned empty (e.g. NPEI has not published current month yet),
+            # search back up to 90 days to capture the latest finalized billing data
+            if not usage_data:
+                _LOGGER.info("Recent 35 days returned no data from NPEI, querying prior months...")
+                prev_start = (today - timedelta(days=90)).isoformat()
+                prev_end = (today - timedelta(days=36)).isoformat()
+                prev_usage = await self.client.get_usage(
+                    start_date=prev_start,
+                    end_date=prev_end,
+                    view="DAILY",
+                )
+                if prev_usage:
+                    usage_data = prev_usage
 
             # Fetch weather for Niagara Falls
             weather_data = await self.client.get_weather(
@@ -79,11 +93,23 @@ class NPEIDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
             # Process latest daily record
             latest_usage = None
             price_plan = "TOU"
-            buckets: Dict[str, float] = {}
+            buckets: Dict[str, float] = {
+                "Off-Peak": 0.0,
+                "Mid-Peak": 0.0,
+                "On-Peak": 0.0,
+                "Tier 1": 0.0,
+                "Tier 2": 0.0,
+            }
 
             if usage_data:
                 # Find the most recent day with valid consumption
-                latest_usage = usage_data[-1]
+                for record in reversed(usage_data):
+                    if record.get("value") is not None:
+                        latest_usage = record
+                        break
+                if not latest_usage:
+                    latest_usage = usage_data[-1]
+
                 price_plan = latest_usage.get("pricePlan", "TOU")
                 for bucket in latest_usage.get("usageBucket", []):
                     period = bucket.get("pricePeriod")
