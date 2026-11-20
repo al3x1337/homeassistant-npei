@@ -39,8 +39,10 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
         await client.authenticate()
         discovery = await client.discover_account()
     except NPEIAuthError as err:
+        _LOGGER.error("NPEI authentication failed: %s", err)
         raise InvalidAuth from err
     except Exception as err:
+        _LOGGER.exception("Unexpected error during NPEI login: %s", err)
         raise CannotConnect from err
 
     account_id = discovery.get("accountId") or "Unknown"

@@ -95,21 +95,32 @@ class NPEIClient:
             async with session.post(
                 login_url, data=urllib.parse.urlencode(payload), headers=headers
             ) as resp:
-                if resp.status in (400, 401, 403):
+                if resp.status in (400, 401, 403, 404):
                     text = await resp.text()
+                    _LOGGER.error("NPEI IAM returned auth error status %s: %s", resp.status, text)
                     raise NPEIAuthError(f"Login failed ({resp.status}): {text}")
                 if resp.status != 200:
                     text = await resp.text()
+                    _LOGGER.error("NPEI IAM returned unexpected status %s: %s", resp.status, text)
                     raise NPEIAPIError(f"Unexpected status from IAM ({resp.status}): {text}")
 
                 data = await resp.json()
-                self._token = data.get("token")
+                if data.get("mfa"):
+                    _LOGGER.error("MFA required on this account")
+                    raise NPEIAuthError("MFA/2FA is enabled on this NPEI account. Headless login requires direct email/password without MFA.")
+
+                self._token = (
+                    data.get("access_token")
+                    or data.get("token")
+                    or data.get("accessToken")
+                )
                 expires_in = data.get("expires_in", 3600)
                 self._token_expiry = datetime.now() + timedelta(seconds=expires_in)
                 self._user_info = data.get("user", {})
 
                 if not self._token:
-                    raise NPEIAuthError("Login succeeded but no token was returned")
+                    _LOGGER.error("Login succeeded but no access_token in response: %s", data)
+                    raise NPEIAuthError(f"Login response missing access_token: {data}")
 
                 _LOGGER.debug("Authenticated successfully. Token valid for %s seconds", expires_in)
                 return self._token
