@@ -1,0 +1,22 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Niagara Peninsula Energy Inc. (NPEI)",
+        "description": "Enter your NPEI MyAccount portal login credentials.",
+        "data": {
+          "username": "Email Address",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to NPEI servers.",
+      "invalid_auth": "Invalid email or password.",
+      "unknown": "Unexpected error occurred."
+    },
+    "abort": {
+      "already_configured": "This NPEI account is already configured."
+    }
+  }
+}

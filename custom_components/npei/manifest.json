@@ -1,0 +1,12 @@
+{
+  "domain": "npei",
+  "name": "Niagara Peninsula Energy Inc. (NPEI)",
+  "codeowners": ["@al3x1337"],
+  "config_flow": true,
+  "documentation": "https://github.com/al3x1337/homeassistant-npei",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/al3x1337/homeassistant-npei/issues",
+  "requirements": [],
+  "version": "1.0.0"
+}
